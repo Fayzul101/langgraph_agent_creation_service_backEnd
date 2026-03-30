@@ -1,0 +1,158 @@
+INFO:     Will watch for changes in these directories: ['/Users/macbookair1/langgraph_console']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [30190] using StatReload
+INFO:     Started server process [30277]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [30277]
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001104a2600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000119a3c600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000107fcb600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001161a0600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000111ae7600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000111ff5600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'agent_api.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000010aa97600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000117e4a600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000011a57c600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000010c3d0600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000010e150600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001106cb600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent copy.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001084a6600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent copy.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001061ad600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent copy.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000011e66b600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'langgraph_agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x0000000113684600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'BrandGPT_Agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000010a14e600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'BrandGPT_Agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001122c7600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'BrandGPT_Agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001013fc600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'BrandGPT_Agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x00000001108c1600 (most recent call first):
+  <no Python frame>
+WARNING:  StatReload detected changes in 'BrandGPT_Agent.py'. Reloading...
+Fatal Python error: init_sys_streams: can't initialize sys standard streams
+Python runtime state: core initialized
+OSError: [Errno 9] Bad file descriptor
+
+Current thread 0x000000010ec49600 (most recent call first):
+  <no Python frame>
+INFO:     Stopping reloader process [30190]
