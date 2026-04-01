@@ -1,9 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from langgraph_agent_2 import run_agent, get_db_connection
+from langgraph_agent_2 import run_agent
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import os
+import requests
+from dotenv import load_dotenv
 from typing import List, Dict, Any
+
+load_dotenv(dotenv_path=".env")
 
 app = FastAPI(title="LangGraph Agent API")
 
@@ -14,6 +19,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 class ChatRequest(BaseModel):
     query: str
@@ -30,41 +38,48 @@ class WidgetChatRequest(BaseModel):
     session_id: str
 
 def get_agent_by_id(agent_id: int):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT user_id, system_prompt, k_value, knowledge_base, namespace, agent_name, init_mssg, first_mssg, show_preset FROM created_agents WHERE id = %s",
-        (agent_id,)
-    )
-    row = cur.fetchone()
-    
-    if not row:
-        cur.close()
-        conn.close()
-        return None
-        
-    # Fetch preset questions from the separate table
-    cur.execute(
-        "SELECT question FROM preset_questions WHERE agent_id = %s",
-        (agent_id,)
-    )
-    questions = [r[0] for r in cur.fetchall()]
-    
-    cur.close()
-    conn.close()
-    
-    return {
-        "user_id": str(row[0]),
-        "system_prompt": row[1],
-        "k_value": row[2],
-        "knowledge_base": row[3],
-        "namespace": row[4],
-        "agent_name": row[5],
-        "init_mssg": row[6],
-        "first_mssg": row[7],
-        "show_preset": row[8],
-        "preset_questions": questions
+    # Fetch agent details
+    agent_url = f"{SUPABASE_URL}/rest/v1/created_agents"
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
     }
+    params = {
+        "id": f"eq.{agent_id}",
+        "select": "user_id,system_prompt,k_value,knowledge_base,namespace,agent_name,init_mssg,first_mssg,show_preset"
+    }
+    
+    try:
+        response = requests.get(agent_url, headers=headers, params=params)
+        if response.status_code != 200 or not response.json():
+            return None
+        
+        row = response.json()[0]
+        
+        # Fetch preset questions
+        questions_url = f"{SUPABASE_URL}/rest/v1/preset_questions"
+        q_params = {
+            "agent_id": f"eq.{agent_id}",
+            "select": "question"
+        }
+        q_response = requests.get(questions_url, headers=headers, params=q_params)
+        questions = [r["question"] for r in q_response.json()] if q_response.status_code == 200 else []
+        
+        return {
+            "user_id": str(row["user_id"]),
+            "system_prompt": row["system_prompt"],
+            "k_value": row["k_value"],
+            "knowledge_base": row["knowledge_base"],
+            "namespace": row["namespace"],
+            "agent_name": row["agent_name"],
+            "init_mssg": row["init_mssg"],
+            "first_mssg": row["first_mssg"],
+            "show_preset": row["show_preset"],
+            "preset_questions": questions
+        }
+    except Exception as e:
+        print(f"Error fetching agent from Supabase: {str(e)}")
+        return None
 
 @app.get("/")
 async def root():

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import re
 import tempfile
-import psycopg
+import requests
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,14 +21,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── PostgreSQL Configuration ───────────────────────────────────────────────
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5434")
-DB_NAME = os.getenv("DB_NAME", "langgraph_users")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+# ─── Supabase Configuration ─────────────────────────────────────────────────
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-CONNECTION_STRING = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    print("Warning: Supabase credentials are missing!")
 
 # ─── Initialize Embeddings ───────────────────────────────────────────────────
 embedding_tool = OpenAIEmbeddings(
@@ -83,22 +81,31 @@ async def process_kb(
                 chunks = text_splitter.split_text(text.strip())
                 all_chunks.extend(chunks)
 
-            # Insert into Database for this file
-            with psycopg.connect(CONNECTION_STRING) as conn:
-                with conn.cursor() as cur:
-                    for chunk_text in all_chunks:
-                        # Generate vector embedding for the chunk
-                        vector = embedding_tool.embed_query(chunk_text)
-                        
-                        # Insert chunk data into the knowledge_base table
-                        cur.execute(
-                            """
-                            INSERT INTO knowledge_base (content, name_metadata, knowledge_base_name, vector_content, user_id)
-                            VALUES (%s, %s, %s, %s, %s)
-                            """,
-                            (chunk_text, knowledge_name, kb_name, vector, user_id)
-                        )
-                conn.commit()
+            # Insert into Supabase for this file
+            url = f"{SUPABASE_URL}/rest/v1/knowledge_base"
+            headers = {
+                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            }
+            
+            payload = []
+            for chunk_text in all_chunks:
+                vector = embedding_tool.embed_query(chunk_text)
+                payload.append({
+                    "content": chunk_text,
+                    "name_metadata": knowledge_name,
+                    "knowledge_base_name": kb_name,
+                    "vector_content": vector,
+                    "user_id": user_id
+                })
+            
+            if payload:
+                response = requests.post(url, headers=headers, json=payload)
+                if response.status_code not in [200, 201, 204]:
+                    print(f"Supabase Insert Error: {response.status_code} - {response.text}")
+                    raise Exception(f"Failed to insert chunks into Supabase: {response.text}")
 
         return {"message": f"{len(files)} files processed and uploaded successfully!"}
 
