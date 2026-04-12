@@ -7,6 +7,8 @@ import os
 import requests
 from dotenv import load_dotenv
 from typing import List, Dict, Any
+from langchain_openai.chat_models import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv(dotenv_path=".env")
 
@@ -31,6 +33,9 @@ class ChatRequest(BaseModel):
     thread_id: str
     kb_name: str
     system_prompt: str
+
+class PromptGenerationRequest(BaseModel):
+    description: str
 
 class WidgetChatRequest(BaseModel):
     agent_id: int
@@ -168,6 +173,30 @@ async def widget_chat(body: WidgetChatRequest):
         raise he
     except Exception as e:
         print(f"Error in widget/chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-system-prompt")
+async def generate_system_prompt(request: PromptGenerationRequest):
+    try:
+        llm = ChatOpenAI(
+            model="gpt-4o",
+            temperature=0.7,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        )
+        
+        prompt_template = ChatPromptTemplate.from_template(
+            "You are an expert at creating system prompts for AI agents. "
+            "Based on the following description, generate a comprehensive and effective system prompt for an agent: "
+            "{description}\n\n"
+            "Return ONLY the system prompt text, without any additional formatting or explanations."
+        )
+        
+        chain = prompt_template | llm
+        response = chain.invoke({"description": request.description})
+        
+        return {"system_prompt": response.content}
+    except Exception as e:
+        print(f"Error in generate-system-prompt endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
