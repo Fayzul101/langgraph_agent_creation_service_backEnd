@@ -1,0 +1,10 @@
+INFO:     Started server process [29349]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+DEBUG: run_agent results messages count: 2
+Response: Hello! It seems like you might be expressing something positive. How can I assist you today?
+
+
+INFO:     127.0.0.1:55891 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55893 - "GET /kb/ HTTP/1.1" 200 OK
