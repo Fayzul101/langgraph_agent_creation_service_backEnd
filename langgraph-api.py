@@ -50,7 +50,7 @@ class ChatRequest(BaseModel):
     k: int
     namespace: str
     user_id: str
-    agent_id: str
+    agent_id: str = None
     thread_id: str
     kb_name: str
     system_prompt: str
@@ -130,45 +130,20 @@ async def widget_config(agent_id: str):
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
+    print(f"User ID: {request.user_id}")
     try:
-        # 0. Fetch agent data to get the real owner user_id
-        agent = get_agent_by_id(request.agent_id)
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-        
-        real_user_id = agent["user_id"]
-
-        # 1. Pre-check tokens using REST API
-        user_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}&select=token_count"
-        headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}"
-        }
-        user_response = requests.get(user_url, headers=headers)
-        if user_response.status_code != 200 or not user_response.json():
-            raise HTTPException(status_code=404, detail="User not found")
-            
-        current_tokens = user_response.json()[0]["token_count"]
-        if current_tokens <= 0:
-            return {
-                "status": "error",
-                "messages": [{"role": "bot", "content": "You have exceeded your token limit"}]
-            }
-        
-        # 2. Invoke the agent
+        # Invoke the agent directly without token checks
         response = run_agent(
             query=request.query,
             meth_k=request.k,
             meth_namespace=request.namespace,
-            meth_uuid=real_user_id, # Use the real user_id for context retrieval
+            meth_uuid=request.user_id,
             thread_id=request.thread_id,
             meth_kb=request.kb_name,
             meth_sys_prompt=request.system_prompt
         )
         
         serializable_messages = []
-        bot_response_text = ""
-        
         for msg in response.get("messages", []):
             role = "user" if hasattr(msg, "type") and msg.type == "human" else "bot"
             content = msg.content
@@ -176,21 +151,11 @@ async def chat(request: ChatRequest):
             if role == "bot" and content.startswith("System_response:"):
                 content = content.replace("System_response:", "").strip()
             
-            if role == "bot":
-                bot_response_text = content 
-
             serializable_messages.append({
                 "role": role,
                 "content": content
             })
             
-        # 3. Calculate and Deduct tokens from owner's account
-        output_tokens = calculate_tokens(bot_response_text)
-        new_token_count = max(0, current_tokens - output_tokens)
-        
-        update_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}"
-        requests.patch(update_url, headers=headers, json={"token_count": new_token_count})
-
         return {
             "status": "success",
             "messages": serializable_messages
