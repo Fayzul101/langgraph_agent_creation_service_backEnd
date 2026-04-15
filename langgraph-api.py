@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, APIRouter
 from pydantic import BaseModel
 from langgraph_agent import run_agent
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import os
 import re
 import tempfile
 import requests
+import math
+import psycopg
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -28,9 +29,14 @@ app.add_middleware(
 )
 
 # ─── Configuration ──────────────────────────────────────────────────────────
-SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DB_URL = os.getenv("DB_URL")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Missing Supabase credentials in environment variables.")
 
 # Initialize shared tools
 embedding_tool = OpenAIEmbeddings(
@@ -44,6 +50,7 @@ class ChatRequest(BaseModel):
     k: int
     namespace: str
     user_id: str
+    agent_id: str
     thread_id: str
     kb_name: str
     system_prompt: str
@@ -99,6 +106,10 @@ def get_agent_by_id(agent_id: str):
         print(f"Error fetching agent from Supabase: {str(e)}")
         return None
 
+def calculate_tokens(text: str) -> int:
+    """Calculate token count based on 1 token = 4 characters."""
+    return math.ceil(len(text) / 4)
+
 # ─── Agent API Endpoints ────────────────────────────────────────────────────
 @app.get("/")
 async def root():
@@ -120,17 +131,44 @@ async def widget_config(agent_id: str):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
+        # 0. Fetch agent data to get the real owner user_id
+        agent = get_agent_by_id(request.agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        real_user_id = agent["user_id"]
+
+        # 1. Pre-check tokens using REST API
+        user_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}&select=token_count"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        user_response = requests.get(user_url, headers=headers)
+        if user_response.status_code != 200 or not user_response.json():
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        current_tokens = user_response.json()[0]["token_count"]
+        if current_tokens <= 0:
+            return {
+                "status": "error",
+                "messages": [{"role": "bot", "content": "You have exceeded your token limit"}]
+            }
+        
+        # 2. Invoke the agent
         response = run_agent(
             query=request.query,
             meth_k=request.k,
             meth_namespace=request.namespace,
-            meth_uuid=request.user_id,
+            meth_uuid=real_user_id, # Use the real user_id for context retrieval
             thread_id=request.thread_id,
             meth_kb=request.kb_name,
             meth_sys_prompt=request.system_prompt
         )
         
         serializable_messages = []
+        bot_response_text = ""
+        
         for msg in response.get("messages", []):
             role = "user" if hasattr(msg, "type") and msg.type == "human" else "bot"
             content = msg.content
@@ -138,15 +176,27 @@ async def chat(request: ChatRequest):
             if role == "bot" and content.startswith("System_response:"):
                 content = content.replace("System_response:", "").strip()
             
+            if role == "bot":
+                bot_response_text = content 
+
             serializable_messages.append({
                 "role": role,
                 "content": content
             })
             
+        # 3. Calculate and Deduct tokens from owner's account
+        output_tokens = calculate_tokens(bot_response_text)
+        new_token_count = max(0, current_tokens - output_tokens)
+        
+        update_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}"
+        requests.patch(update_url, headers=headers, json={"token_count": new_token_count})
+
         return {
             "status": "success",
             "messages": serializable_messages
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -158,11 +208,27 @@ async def widget_chat(body: WidgetChatRequest):
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
 
+        real_user_id = agent["user_id"]
+
+        # 1. Pre-check tokens using REST API
+        user_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}&select=token_count"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        user_response = requests.get(user_url, headers=headers)
+        if user_response.status_code != 200 or not user_response.json():
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        current_tokens = user_response.json()[0]["token_count"]
+        if current_tokens <= 0:
+            return {"response": "You have exceeded your token limit"}
+
         response = run_agent(
             query=body.message,
             meth_k=agent["k_value"],
             meth_namespace=agent["namespace"],
-            meth_uuid=agent["user_id"],
+            meth_uuid=real_user_id, # passing the real owner for context
             thread_id=body.session_id,
             meth_kb=agent["knowledge_base"],
             meth_sys_prompt=agent["system_prompt"]
@@ -177,6 +243,13 @@ async def widget_chat(body: WidgetChatRequest):
                     content = content.replace("System_response:", "").strip()
                 bot_message = content
                 
+        # 3. Calculate and Deduct tokens from owner's account
+        output_tokens = calculate_tokens(bot_message)
+        new_token_count = max(0, current_tokens - output_tokens)
+        
+        update_url = f"{SUPABASE_URL}/rest/v1/user?id=eq.{real_user_id}"
+        requests.patch(update_url, headers=headers, json={"token_count": new_token_count})
+
         return {"response": bot_message}
     except HTTPException as he:
         raise he
