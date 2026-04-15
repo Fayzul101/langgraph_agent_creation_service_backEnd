@@ -49,7 +49,7 @@ class ChatRequest(BaseModel):
     system_prompt: str
 
 class WidgetChatRequest(BaseModel):
-    agent_id: int
+    agent_id: str
     message: str
     session_id: str
 
@@ -57,14 +57,14 @@ class PromptGenerationRequest(BaseModel):
     description: str
 
 # ─── Agent API Helper Functions ──────────────────────────────────────────────
-def get_agent_by_id(agent_id: int):
+def get_agent_by_id(agent_id: str):
     agent_url = f"{SUPABASE_URL}/rest/v1/created_agents"
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
     }
     params = {
-        "id": f"eq.{agent_id}",
+        "agent_id": f"eq.{agent_id}",
         "select": "user_id,system_prompt,k_value,knowledge_base,namespace,agent_name,init_mssg,first_mssg,show_preset"
     }
     
@@ -105,7 +105,7 @@ async def root():
     return {"message": "LangGraph Unified API Service is running"}
 
 @app.get("/widget/config/{agent_id}")
-async def widget_config(agent_id: int):
+async def widget_config(agent_id: str):
     agent = get_agent_by_id(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
