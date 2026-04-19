@@ -82,3 +82,4 @@ logs/
 
 # uv (if used)
 .uv/
+.env
