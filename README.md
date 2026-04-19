@@ -23,7 +23,7 @@ A full-stack, self-hosted platform for building, managing, and chatting with AI 
 
 ## 🏗️ Architecture
 
-The system is split into three independently running processes:
+The system consists of the Next.js Frontend and a unified Python backend:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -36,19 +36,18 @@ The system is split into three independently running processes:
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │  /dashboard  │  │  /api/kb/*   │  │  /api/agents │  │
 │  │  /agent/[id] │  │  /api/auth/* │  │  /api/dash.. │  │
-│  └──────────────┘  └──────┬───────┘  └──────┬───────┘  │
-└─────────────────────────  │  ─────────────  │  ────────┘
-                            │                 │
-              ┌─────────────▼──┐    ┌─────────▼──────────┐
-              │  kb_service.py │    │   agent_api.py      │
-              │  (Port 8000)   │    │   (Port 8001)       │
-              │  FastAPI       │    │   FastAPI           │
-              │  • PDF Parse   │    │   • LangGraph       │
-              │  • Chunk Text  │    │   • RAG Retrieval   │
-              │  • Embed + Save│    │   • Chat Response   │
-              └───────┬────────┘    └─────────┬──────────┘
-                      │                       │
-                      └──────────┬────────────┘
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+└─────────────────────────┬──────────────────────────────┘
+                          │
+              ┌───────────▼────────────────────────┐
+              │        langgraph-api.py            │
+              │          (Port 8002)               │
+              │   • PDF Parse   • LangGraph        │
+              │   • Chunk Text  • RAG Retrieval    │
+              │   • Embed+Save  • Chat Response    │
+              └───────────┬────────────────────────┘
+                      │
+                      └──────────────────────────┐
                                  ▼
               ┌──────────────────────────────────┐
               │   PostgreSQL Database            │
@@ -93,58 +92,15 @@ The system is split into three independently running processes:
 
 ## 📁 Project Structure
 
-```
-langgraph_console/
+```text
+langgraph_console_backend/
 │
-├── src/
-│   ├── app/
-│   │   ├── page.tsx                     # Login page
-│   │   ├── signup/                      # User signup page
-│   │   ├── dashboard/
-│   │   │   ├── layout.tsx               # Dashboard shell (sidebar + header)
-│   │   │   ├── page.tsx                 # Dashboard overview (stats)
-│   │   │   ├── agent/[id]/page.tsx      # Agent chat interface
-│   │   │   ├── create-agent/            # Agent list & creation page
-│   │   │   ├── knowledge-base/          # Knowledge base upload page
-│   │   │   └── database/               # Database chunk inspector
-│   │   └── api/
-│   │       ├── auth/
-│   │       │   ├── login/route.ts       # POST /api/auth/login
-│   │       │   ├── logout/route.ts      # POST /api/auth/logout
-│   │       │   └── signup/route.ts      # POST /api/auth/signup
-│   │       ├── dashboard/
-│   │       │   └── stats/route.ts       # GET /api/dashboard/stats
-│   │       ├── agents/route.ts          # GET/POST/PATCH /api/agents
-│   │       └── kb/
-│   │           ├── upload/route.ts      # POST /api/kb/upload
-│   │           ├── chunks/route.ts      # GET /api/kb/chunks
-│   │           ├── names/route.ts       # GET /api/kb/names
-│   │           ├── namespaces/route.ts  # GET /api/kb/namespaces
-│   │           ├── unique-names/route.ts# GET /api/kb/unique-names
-│   │           └── delete/route.ts      # DELETE /api/kb/delete
-│   ├── components/
-│   │   ├── agents/
-│   │   │   ├── AgentList.tsx            # List of agents with filter
-│   │   │   ├── CreateAgentModal.tsx     # Modal form to create an agent
-│   │   │   ├── AgentSettingsModal.tsx   # Modal to edit agent settings
-│   │   │   └── AgentSettingsSidebar.tsx # Sidebar variant of settings
-│   │   ├── knowledge-base/
-│   │   │   └── AddKnowledgeBaseForm.tsx # PDF upload form
-│   │   └── ui/
-│   │       ├── Button.tsx               # Reusable button component
-│   │       ├── Input.tsx                # Reusable input component
-│   │       └── Label.tsx                # Reusable label component
-│   └── lib/
-│       ├── db.ts                        # PostgreSQL query helper
-│       └── utils.ts                     # Utility functions (cn, etc.)
-│
-├── agent_api.py                         # FastAPI: Agent chat service (port 8001)
-├── kb_service.py                        # FastAPI: Document processing service (port 8000)
+├── langgraph-api.py                     # Main FastAPI unified backend service (port 8002)
 ├── langgraph_agent.py                   # Core LangGraph workflow definition
 ├── requirements.txt                     # Python dependencies
-├── package.json                         # Node.js dependencies
-├── .env                                 # Environment variables for Python services
-└── .env.local                           # Environment variables for Next.js
+├── .env                                 # Environment variables for PostgreSQL, Supabase, OpenAI
+├── misellenious/                        # Misc scripts and older variants
+└── not needed/                          # Legacy service files (agent_api.py, kb_service.py)
 ```
 
 ---
@@ -259,57 +215,37 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
 
 ## ⚙️ Environment Variables
 
-### Root `.env` (used by Python services)
-
-Create a `.env` file in the project root:
+Create a `.env` file in the project backend directory:
 
 ```env
 OPENAI_API_KEY=sk-...your-openai-key...
 
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=langgraph_users
-DB_USER=postgres
-DB_PASSWORD=your_db_password
-```
+# Supabase Credentials
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1...
 
-### `.env.local` (used by Next.js)
-
-Create a `.env.local` file in the project root:
-
-```env
-DATABASE_URL=postgresql://postgres:your_db_password@localhost:5432/langgraph_users
+# Database URL
+DB_URL=postgresql://postgres:your_db_password@localhost:5432/postgres
 ```
 
 ---
 
 ## 🏃 Running the Application
 
-You need to start **three** separate processes. Open three terminal tabs/windows:
+If you are running the backend in isolation, you only need to start the main FastAPI application. Navigate to the backend directory and run:
 
-### Terminal 1 — Next.js Frontend
-```bash
-npm run dev
-```
-> Accessible at: **http://localhost:3000**
-
-### Terminal 2 — Knowledge Base Service
+### Unified Backend Service
 ```bash
 # Activate your virtual environment first
 source .venv/bin/activate
 
-uvicorn kb_service:app --host 0.0.0.0 --port 8000 --reload
+# The FastAPI app is exposed on port 8002
+python langgraph-api.py
 ```
-> API Docs: **http://localhost:8000/docs**
+> API Docs: **http://localhost:8002/docs**
 
-### Terminal 3 — Agent Chat API
-```bash
-# Activate your virtual environment first
-source .venv/bin/activate
-
-uvicorn agent_api:app --host 0.0.0.0 --port 8001 --reload
-```
-> API Docs: **http://localhost:8001/docs**
+*(Note: The Next.js frontend application, if applicable to your deployment, should be started separately in its respective repository using `npm run dev`.)*
 
 ---
 
@@ -333,29 +269,24 @@ uvicorn agent_api:app --host 0.0.0.0 --port 8001 --reload
 | `GET` | `/api/kb/unique-names` | Get globally unique KB names |
 | `DELETE` | `/api/kb/delete` | Delete a knowledge base |
 
-### Python Microservices
-
-#### KB Service (Port 8000)
+### Python Backend Service (Port 8002)
 
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/` | Health check |
-| `POST` | `/process-kb` | Upload, parse, chunk, embed, and store documents |
+| `POST` | `/process_kb` | Upload, parse, chunk, embed, and store documents |
+| `POST` | `/chat` | Send a message to the LangGraph agent |
+| `POST` | `/widget/chat` | Isolated chat interface for the embeddable chat widget |
+| `GET` | `/widget/config` | Retrieves configuration details to initialize the widget |
+| `POST` | `/generate_system_prompt` | Dynamically produce a system prompt based on description |
 
-**`POST /process-kb` — Form Data:**
-```
+**`POST /process_kb` — Form Data:**
+```text
 files:          List[UploadFile]   # One or more PDF/TXT/MD/CSV files
 kb_name:        str                # Knowledge base group name
 knowledge_name: str                # Namespace/document identifier
 user_id:        str                # User UUID
 ```
-
-#### Agent API (Port 8001)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | Health check |
-| `POST` | `/chat` | Send a message to the LangGraph agent |
 
 **`POST /chat` — JSON Body:**
 ```json
